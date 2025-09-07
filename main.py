@@ -19,8 +19,11 @@ from initialize import initialize
 import components as cn
 # （自作）変数（定数）がまとめて定義・管理されているモジュール
 import constants as ct
+import os
+import openai
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
-
+print("API KEY:", os.getenv("OPENAI_API_KEY"))
 ############################################################
 # 2. 設定関連
 ############################################################
@@ -84,7 +87,18 @@ except Exception as e:
 ############################################################
 # 6. チャット入力の受け付け
 ############################################################
-chat_message = st.chat_input(ct.CHAT_INPUT_HELPER_TEXT)
+chat_message = None
+with st.form(key="chat_form", clear_on_submit=False):
+    user_input = st.text_area(
+        label="",
+        value="",
+        placeholder=ct.CHAT_INPUT_HELPER_TEXT,
+        height=80,
+        key="chat_input_area"
+    )
+    submitted = st.form_submit_button("送信")
+    if submitted and user_input:
+        chat_message = user_input
 
 
 ############################################################

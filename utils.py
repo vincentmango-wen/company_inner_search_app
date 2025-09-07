@@ -8,6 +8,7 @@
 import os
 from dotenv import load_dotenv
 import streamlit as st
+import logging
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.schema import HumanMessage
 from langchain_openai import ChatOpenAI
@@ -114,3 +115,5 @@ def get_llm_response(chat_message):
     st.session_state.chat_history.extend([HumanMessage(content=chat_message), llm_response["answer"]])
 
     return llm_response
+
+

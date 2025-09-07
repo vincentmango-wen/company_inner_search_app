@@ -22,7 +22,7 @@ ANSWER_MODE_2 = "社内問い合わせ"
 CHAT_INPUT_HELPER_TEXT = "こちらからメッセージを送信してください。"
 DOC_SOURCE_ICON = ":material/description: "
 LINK_SOURCE_ICON = ":material/link: "
-WARNING_ICON = ":material/warning:"
+WARNING_ICON = "<i class='fa-solid fa-triangle-exclamation' style='color:#b56a00;margin-right:6px;'></i>"
 ERROR_ICON = ":material/error:"
 SPINNER_TEXT = "回答生成中..."
 
@@ -50,11 +50,15 @@ RAG_TOP_FOLDER_PATH = "./data"
 SUPPORTED_EXTENSIONS = {
     ".pdf": PyMuPDFLoader,
     ".docx": Docx2txtLoader,
-    ".csv": lambda path: CSVLoader(path, encoding="utf-8")
+    ".csv": lambda path: CSVLoader(path, encoding="utf-8"),
+    ".txt": lambda path: TextLoader(path, encoding="utf-8")
 }
 WEB_URL_LOAD_TARGETS = [
     "https://generative-ai.web-camp.io/"
 ]
+
+# ChromaDB persistence directory (where Chroma stores sqlite / files)
+CHROMA_DB_DIR = "./.db"
 
 
 # ==========================================
@@ -110,3 +114,11 @@ NO_DOC_MATCH_MESSAGE = """
 CONVERSATION_LOG_ERROR_MESSAGE = "過去の会話履歴の表示に失敗しました。"
 GET_LLM_RESPONSE_ERROR_MESSAGE = "回答生成に失敗しました。"
 DISP_ANSWER_ERROR_MESSAGE = "回答表示に失敗しました。"
+
+
+# ==========================================
+# マジックナンバー
+# ==========================================
+CHUNK_SIZE = 500
+CHUNK_OVERLAP = 200
+TOP_K = 20

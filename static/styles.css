@@ -1,0 +1,60 @@
+@import url("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css");
+
+/* タイトル */
+.main-title {
+  font-size: 2.2rem;
+  font-weight: bold;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+/* ボックス */
+.purpose-box {
+  background: #fff;
+  border-radius: 8px;
+  padding: 1.2rem;
+  margin-bottom: 1.2rem;
+  box-shadow: 0 2px 8px #eee;
+}
+.info-box {
+  background: #eaf6ea;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+.warn-box {
+  background: #fffbe6;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+/* サイド */
+.side-purpose {
+  font-size: 1.1rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+.side-label {
+  margin-bottom: 0.7rem;
+}
+.side-example {
+  background: #f5f7fa;
+  border-radius: 6px;
+  padding: 0.7rem;
+  margin-bottom: 0.7rem;
+}
+
+/* 小さいデバイス用の調整 */
+@media (max-width: 640px) {
+  .main-title {
+    font-size: 1.6rem;
+  }
+  .robot-bg {
+    height: 36px;
+    width: 36px;
+  }
+  .info-container {
+    margin-left: 52px;
+  }
+}

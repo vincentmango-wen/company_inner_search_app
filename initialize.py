@@ -13,8 +13,9 @@ import sys
 import unicodedata
 from dotenv import load_dotenv
 import streamlit as st
-from docx import Document
+from docx import Document as DocxDocument
 from langchain_community.document_loaders import WebBaseLoader
+from langchain.schema import Document as LcDocument
 from langchain.text_splitter import CharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
@@ -110,7 +111,7 @@ def initialize_retriever():
         return
     
     # RAGの参照先となるデータソースの読み込み
-    docs_all = load_data_sources()
+    docs_all = load_data_sources(path=ct.RAG_TOP_FOLDER_PATH)
 
     # OSがWindowsの場合、Unicode正規化と、cp932（Windows用の文字コード）で表現できない文字を除去
     for doc in docs_all:
@@ -123,19 +124,43 @@ def initialize_retriever():
     
     # チャンク分割用のオブジェクトを作成
     text_splitter = CharacterTextSplitter(
-        chunk_size=500,
-        chunk_overlap=50,
-        separator="\n"
+        chunk_size=ct.CHUNK_SIZE,
+        chunk_overlap=ct.CHUNK_OVERLAP
     )
 
     # チャンク分割を実施
     splitted_docs = text_splitter.split_documents(docs_all)
 
     # ベクターストアの作成
-    db = Chroma.from_documents(splitted_docs, embedding=embeddings)
+    # Try to open an existing persistent Chroma DB first to avoid recreating
+    # and to ensure the underlying sqlite/collections table exists.
+    chroma_dir = ct.CHROMA_DB_DIR
+    try:
+        if os.path.exists(chroma_dir):
+            logger.info(f"Found existing Chroma directory at {chroma_dir}. Attempting to open it.")
+            # instantiate using persist_directory to reuse existing DB files
+            db = Chroma(persist_directory=chroma_dir, embedding_function=embeddings)
+        else:
+            # No existing DB: create with persist_directory so files are written
+            logger.info(f"No existing Chroma DB found at {chroma_dir}. Creating new persistent DB.")
+            db = Chroma.from_documents(splitted_docs, embedding=embeddings, persist_directory=chroma_dir)
+    except Exception as e:
+        # Common error: underlying sqlite missing tables (e.g., "no such table: collections").
+        logger.error("Chroma initialization failed. Will attempt to recreate persistent DB.")
+        logger.exception(e)
+        # Remove corrupted directory so we can recreate cleanly
+        try:
+            if os.path.exists(chroma_dir):
+                logger.info(f"Removing corrupt Chroma directory: {chroma_dir}")
+                import shutil
+                shutil.rmtree(chroma_dir)
+        except Exception as re:
+            logger.exception(re)
+        # Recreate DB from documents with persistence
+        db = Chroma.from_documents(splitted_docs, embedding=embeddings, persist_directory=chroma_dir)
 
     # ベクターストアを検索するRetrieverの作成
-    st.session_state.retriever = db.as_retriever(search_kwargs={"k": 3})
+    st.session_state.retriever = db.as_retriever(search_kwargs={"k": ct.TOP_K})
 
 
 def initialize_session_state():
@@ -149,7 +174,8 @@ def initialize_session_state():
         st.session_state.chat_history = []
 
 
-def load_data_sources():
+def load_data_sources(path):
+    path = ct.RAG_TOP_FOLDER_PATH
     """
     RAGの参照先となるデータソースの読み込み
 
@@ -159,7 +185,7 @@ def load_data_sources():
     # データソースを格納する用のリスト
     docs_all = []
     # ファイル読み込みの実行（渡した各リストにデータが格納される）
-    recursive_file_check(ct.RAG_TOP_FOLDER_PATH, docs_all)
+    recursive_file_check(path, docs_all)
 
     web_docs_all = []
     # ファイルとは別に、指定のWebページ内のデータも読み込み
@@ -217,6 +243,33 @@ def file_load(path, docs_all):
         # ファイルの拡張子に合ったdata loaderを使ってデータ読み込み
         loader = ct.SUPPORTED_EXTENSIONS[file_extension](path)
         docs = loader.load()
+                # ファイルの拡張子を取得
+    file_extension = os.path.splitext(path)[1]
+    # ファイル名（拡張子を含む）を取得
+    file_name = os.path.basename(path)
+
+    # 想定していたファイル形式の場合のみ読み込む
+    if file_extension in ct.SUPPORTED_EXTENSIONS:
+        # ファイルの拡張子に合ったdata loaderを使ってデータ読み込み
+        loader = ct.SUPPORTED_EXTENSIONS[file_extension](path)
+        docs = loader.load()
+
+        # CSV の場合、読み込まれた各行（Document）を10件ずつまとめて1つの Document にする
+        if file_extension == ".csv":
+            grouped_docs = []
+            # docs は各行を表す Document のリストを想定
+            for i in range(0, len(docs), 5):
+                group = docs[i:i+5]
+                # 各行のテキストを改行で連結して 1 件の Document にまとめる
+                combined_content = "\n".join([getattr(d, 'page_content', str(d)) for d in group])
+                # メタデータには元ファイル名と行範囲を記録
+                start_row = i + 1
+                end_row = i + len(group)
+                metadata = {"source": file_name, "row_range": f"{start_row}-{end_row}"}
+                new_doc = LcDocument(page_content=combined_content, metadata=metadata)
+                grouped_docs.append(new_doc)
+            docs = grouped_docs
+
         docs_all.extend(docs)
 
 
